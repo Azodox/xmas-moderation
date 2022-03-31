@@ -1,0 +1,24 @@
+plugins {
+    id 'java'
+    id 'com.github.johnrengelman.shadow' version '7.1.2'
+}
+
+compileJava.options.encoding = 'UTF-8'
+compileTestJava.options.encoding = 'UTF-8'
+sourceCompatibility = targetCompatibility = 17
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+dependencies {
+    shadow 'net.valneas:AccountSystem:0.3.2-xmas'
+    shadow 'fr.olten:xmas-core:0.1.0'
+    shadow 'org.spigotmc:spigot:1.18.2-R0.1-SNAPSHOT'
+    implementation group: 'org.apache.commons', name: 'commons-lang3', version: '3.12.0'
+}
+
+shadowJar {
+    archiveClassifier.set('')
+}
