@@ -1,0 +1,16 @@
+name: Moderation
+description: "Moderation plugin for XMAS."
+author: Azodox_
+version: 0.1.0
+api-version: 1.18
+main: fr.olten.moderation.Moderation
+depend:
+  - AccountSystem
+  - Core
+commands:
+  staffchat:
+    description: "Send a message to the staff chat."
+    usage: /staffchat <message>
+    aliases:
+      - sc
+      - staff
