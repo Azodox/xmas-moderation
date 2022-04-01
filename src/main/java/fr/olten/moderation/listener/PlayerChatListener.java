@@ -28,6 +28,7 @@ public class PlayerChatListener implements Listener {
     public void onChat(AsyncPlayerChatEvent event) {
         var player  = event.getPlayer();
         var message = event.getMessage();
+        var censoredMessage = event.getMessage();
 
         if(!moderation.getStaffChatToggle().contains(player.getUniqueId())) {
             boolean sensitive = false;
@@ -36,19 +37,21 @@ public class PlayerChatListener implements Listener {
                 if (Arrays.stream(Moderation.SENSITIVE_WORDS).map(StringUtils::stripAccents).anyMatch(s::equalsIgnoreCase)) {
                     sensitive = true;
                     message = message.replace(sSplit, net.md_5.bungee.api.ChatColor.of("#2EFF00") + "" + ChatColor.BOLD + sSplit + ChatColor.RESET);
+                    censoredMessage = censoredMessage.replace(sSplit, ChatColor.MAGIC + sSplit + ChatColor.RESET);
                 }
             }
 
             if (sensitive) {
                 event.setCancelled(true);
                 String finalMessage = message;
+                String finalCensoredMessage = censoredMessage;
 
                 var accountSystem = (AccountSystem) Bukkit.getPluginManager().getPlugin("AccountSystem");
                 var accountManager = new AccountManager(accountSystem, player);
                 var rank = accountManager.newRankManager().getMajorRank();
                 Bukkit.getOnlinePlayers().stream().filter(Player::isOp).forEach(p -> p.sendMessage(String.format(Core.CHAT_FORMAT.replace("%rank%", rank.getPrefix()), player.getName(), finalMessage)));
                 Bukkit.getOnlinePlayers().stream().filter(p -> !p.isOp()).forEach(p -> p.sendMessage(String.format(Core.CHAT_FORMAT.replace("%rank%", rank.getPrefix()), player.getName(), event.getMessage())));
-                Bukkit.getConsoleSender().sendMessage(String.format(Core.CHAT_FORMAT.replace("%rank%", rank.getPrefix()), player.getName(), event.getMessage()));
+                Bukkit.getConsoleSender().sendMessage(String.format(Core.CHAT_FORMAT.replace("%rank%", rank.getPrefix()), player.getName(), finalCensoredMessage));
             }
         }else{
             event.setCancelled(true);
