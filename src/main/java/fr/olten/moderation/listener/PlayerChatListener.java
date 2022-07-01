@@ -1,18 +1,19 @@
 package fr.olten.moderation.listener;
 
 import fr.olten.moderation.Moderation;
-import fr.olten.xmas.Core;
-import net.valneas.account.AccountManager;
-import net.valneas.account.AccountSystem;
-import net.valneas.account.rank.RankUnit;
+import fr.olten.moderation.util.Moderator;
+import io.papermc.paper.event.player.AsyncChatEvent;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.apache.commons.lang3.StringUtils;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
 
 import java.util.Arrays;
 
@@ -25,39 +26,44 @@ public class PlayerChatListener implements Listener {
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
-    public void onChat(AsyncPlayerChatEvent event) {
+    public void onChat(AsyncChatEvent event) {
         var player  = event.getPlayer();
-        var message = event.getMessage();
+        var moderator = new Moderator(player);
+        var message = event.message();
+        var content = PlainTextComponentSerializer.plainText().serialize(message);
+        var censored = (Component) Component.empty();
+        var moderatorMessage = (Component) Component.empty();
 
-        if(!moderation.getStaffChatToggle().contains(player.getUniqueId())) {
+        if(!Moderation.STAFF_CHAT_TOGGLE.contains(player.getUniqueId())) {
             boolean sensitive = false;
-            for (String sSplit : message.split(" ")) {
+            for (String sSplit : content.split(" ")) {
                 String s = StringUtils.stripAccents(sSplit).replaceAll("\\p{Punct}", "");
                 if (Arrays.stream(Moderation.SENSITIVE_WORDS).map(StringUtils::stripAccents).anyMatch(s::equalsIgnoreCase)) {
                     sensitive = true;
-                    message = message.replace(sSplit, net.md_5.bungee.api.ChatColor.of("#2EFF00") + "" + ChatColor.BOLD + sSplit + ChatColor.RESET);
+                    message = message.replaceText(builder -> builder.matchLiteral(sSplit).replacement(Component.text(sSplit).color(TextColor.color(0xf74343)).decorate(TextDecoration.BOLD)));
+                    moderatorMessage = message.replaceText(builder -> builder.matchLiteral(sSplit).replacement(Component.text("*" + sSplit + "*").decorate(TextDecoration.UNDERLINED)));
+                    var text = Component.text();
+                    for (char c : sSplit.toCharArray()) {
+                        text.append(Component.text('*'));
+                    }
+                    censored = message.replaceText(builder -> builder.matchLiteral(sSplit).replacement(text.build().decorate(TextDecoration.OBFUSCATED)));
                 }
             }
 
             if (sensitive) {
-                event.setCancelled(true);
-                String finalMessage = message;
-
-                var accountSystem = (AccountSystem) Bukkit.getPluginManager().getPlugin("AccountSystem");
-                var accountManager = new AccountManager(accountSystem, player);
-                var rank = accountManager.newRankManager().getMajorRank();
-                Bukkit.getOnlinePlayers().stream().filter(Player::isOp).forEach(p -> p.sendMessage(String.format(Core.CHAT_FORMAT.replace("%rank%", rank.getPrefix()), player.getName(), finalMessage)));
-                Bukkit.getOnlinePlayers().stream().filter(p -> !p.isOp()).forEach(p -> p.sendMessage(String.format(Core.CHAT_FORMAT.replace("%rank%", rank.getPrefix()), player.getName(), event.getMessage())));
-                Bukkit.getConsoleSender().sendMessage(String.format(Core.CHAT_FORMAT.replace("%rank%", rank.getPrefix()), player.getName(), event.getMessage()));
+                Component finalCensored = censored;
+                Bukkit.getOnlinePlayers().stream().filter(p -> !p.isOp()).forEach(p -> event.renderer().render(player, player.displayName(), finalCensored, p));
+                Component finalModeratorMessage = moderatorMessage;
+                Bukkit.getOnlinePlayers().stream().filter(Player::isOp).forEach(p -> event.renderer().render(player, player.displayName(), finalModeratorMessage, p));
             }
         }else{
             event.setCancelled(true);
-            moderation.sendInStaffChat(player, message);
+            moderator.sendInStaffChat(message);
         }
 
-        if(message.startsWith(Moderation.STAFF_CHAT_PREFIX)){
+        if(content.startsWith(Moderation.STAFF_CHAT_PREFIX) && !Moderation.STAFF_CHAT_TOGGLE.contains(player.getUniqueId()) && player.hasPermission("xmas.moderation.staffchat")) {
             event.setCancelled(true);
-            moderation.sendInStaffChat(player, message.replace(Moderation.STAFF_CHAT_PREFIX, "§b" + Moderation.STAFF_CHAT_PREFIX + "§r"));
+            moderator.sendInStaffChat(message.replaceText(builder -> builder.matchLiteral(Moderation.STAFF_CHAT_PREFIX).replacement(Component.text(Moderation.STAFF_CHAT_PREFIX).toBuilder().color(NamedTextColor.AQUA).build())));
         }
     }
 }
