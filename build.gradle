@@ -1,24 +1,49 @@
+import org.apache.tools.ant.filters.ReplaceTokens
+
 plugins {
     id 'java'
+    id 'idea'
     id 'com.github.johnrengelman.shadow' version '7.1.2'
 }
 
+group 'fr.olten'
+version '0.1.0'
+
 compileJava.options.encoding = 'UTF-8'
-compileTestJava.options.encoding = 'UTF-8'
 sourceCompatibility = targetCompatibility = 17
 
 repositories {
     mavenLocal()
     mavenCentral()
+    maven {
+        url 'https://papermc.io/repo/repository/maven-public/'
+    }
+    maven { url = "https://repo.aikar.co/content/groups/aikar/" }
 }
 
 dependencies {
-    shadow 'net.valneas:AccountSystem:0.3.2-xmas'
-    shadow 'fr.olten:xmas-core:0.1.0'
-    shadow 'org.spigotmc:spigot:1.18.2-R0.1-SNAPSHOT'
+    annotationProcessor 'org.projectlombok:lombok:1.18.22'
+    compileOnly 'org.projectlombok:lombok:1.18.22'
+    compileOnly 'io.github.azodox:accountsystem-paper:0.5.1:all'
+    compileOnly ('org.spigotmc:spigot:1.18.2-R0.1-SNAPSHOT'){
+        exclude group: 'org.spigotmc', module: 'spigot-api'
+    }
+    compileOnly 'io.papermc.paper:paper-api:1.18.2-R0.1-SNAPSHOT'
     implementation group: 'org.apache.commons', name: 'commons-lang3', version: '3.12.0'
+    implementation "co.aikar:acf-paper:0.5.1-SNAPSHOT"
+}
+
+compileJava {
+    options.compilerArgs += ["-parameters"]
 }
 
 shadowJar {
     archiveClassifier.set('')
+}
+
+processResources {
+    from(sourceSets.main.resources.srcDirs) {
+        filter ReplaceTokens, tokens: [version: version]
+    }
+    duplicatesStrategy = 'include'
 }
