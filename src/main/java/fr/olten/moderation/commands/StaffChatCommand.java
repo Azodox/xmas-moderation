@@ -1,18 +1,17 @@
 package fr.olten.moderation.commands;
 
+import co.aikar.commands.BaseCommand;
+import co.aikar.commands.annotation.*;
 import fr.olten.moderation.Moderation;
-import net.md_5.bungee.api.ChatMessageType;
-import net.md_5.bungee.api.chat.TextComponent;
-import net.valneas.account.AccountManager;
+import fr.olten.moderation.modes.ModesStatus;
+import net.kyori.adventure.text.Component;
 import net.valneas.account.AccountSystem;
-import net.valneas.account.rank.RankUnit;
 import org.bukkit.Bukkit;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
-import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-public class StaffChatCommand implements CommandExecutor {
+@CommandAlias("staffchat|sc|staff")
+@CommandPermission("xmas.moderation.toggle.staffchat")
+public class StaffChatCommand extends BaseCommand {
 
     private final Moderation moderation;
 
@@ -20,28 +19,24 @@ public class StaffChatCommand implements CommandExecutor {
         this.moderation = moderation;
     }
 
+    @Default
+    @Description("Toggle staff chat mode.")
+    public void onStaffChat(Player player){
+        var provider = Bukkit.getServicesManager().getRegistration(AccountSystem.class);
+        if(provider == null)
+            return;
 
-    @Override
-    public boolean onCommand(CommandSender sender, Command cmd, String s, String[] args) {
-        if(sender instanceof Player){
-            Player player = (Player) sender;
-            var accountSystem = (AccountSystem) Bukkit.getPluginManager().getPlugin("AccountSystem");
-            var accountManager = new AccountManager(accountSystem, player);
-            var rank = accountManager.newRankManager();
-
-            if(rank.hasAtLeast(RankUnit.STAFF)){
-                if(args.length == 0) {
-                    if(moderation.getStaffChatToggle().contains(player.getUniqueId())){
-                        moderation.getStaffChatToggle().remove(player.getUniqueId());
-                        player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent("§cStaffChat §f§lDÉSACTIVÉ"));
-                    }else {
-                        moderation.getStaffChatToggle().add(player.getUniqueId());
-                        player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent("§cStaffChat §f§lACTIVÉ"));
-                    }
-                    return true;
-                }
-            }
+        if(Moderation.STAFF_CHAT_TOGGLE.contains(player.getUniqueId())){
+            Moderation.STAFF_CHAT_TOGGLE.remove(player.getUniqueId());
+            ModesStatus.showStatus(player);
+        }else {
+            Moderation.STAFF_CHAT_TOGGLE.add(player.getUniqueId());
+            ModesStatus.showStatus(player);
         }
-        return false;
+    }
+
+    @HelpCommand
+    public void onHelp(Player player){
+        player.sendMessage(Component.text("§c/staffchat §f- Toggle staff chat mode."));
     }
 }
