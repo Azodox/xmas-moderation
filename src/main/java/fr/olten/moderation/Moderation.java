@@ -1,14 +1,24 @@
 package fr.olten.moderation;
 
+import co.aikar.commands.PaperCommandManager;
+import fr.olten.moderation.commands.ModCommand;
 import fr.olten.moderation.commands.StaffChatCommand;
+import fr.olten.moderation.commands.VanishCommand;
 import fr.olten.moderation.listener.PlayerChatListener;
+import fr.olten.moderation.listener.PlayerJoinListener;
+import fr.olten.moderation.modes.ModesStatus;
+import fr.olten.moderation.util.ActionBar;
+import fr.olten.moderation.util.Moderator;
+import lombok.Getter;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.valneas.account.AccountManager;
 import net.valneas.account.AccountSystem;
-import net.valneas.account.rank.RankUnit;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scoreboard.Team;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -71,36 +81,53 @@ public class Moderation extends JavaPlugin {
     };
 
     public static final String STAFF_CHAT_PREFIX = "@";
+    public static final List<UUID> STAFF_CHAT_TOGGLE = new ArrayList<>();
 
-    private final List<UUID> staffChatToggle = new ArrayList<>();
+    private @Getter Component prefix;
+    private @Getter static Team vanishTeam;
+
 
     @Override
     public void onEnable() {
+        saveDefaultConfig();
+
+        var prefixPath = getConfig().getString("prefix");
+        if(prefixPath != null){
+            this.prefix = MiniMessage.miniMessage().deserialize(prefixPath);
+        }
+
+        getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerChatListener(this), this);
 
-        getCommand("staffchat").setExecutor(new StaffChatCommand(this));
+        vanishTeam =
+                Bukkit.getScoreboardManager().getMainScoreboard().getTeam("vanish") == null ?
+                        Bukkit.getScoreboardManager().getMainScoreboard().registerNewTeam("vanish") :
+                        Bukkit.getScoreboardManager().getMainScoreboard().getTeam("vanish");
+        vanishTeam.color(NamedTextColor.GRAY);
+        vanishTeam.suffix(Component.text(" (vanish)").color(NamedTextColor.GRAY).decorate(TextDecoration.ITALIC));
+
+        var provider = getServer().getServicesManager().getRegistration(AccountSystem.class);
+        if (provider != null) {
+            getServer().getOnlinePlayers().forEach(player -> {
+                var accountManager = new AccountManager(provider.getProvider(), player);
+                if (accountManager.getAccount().isVanish()) {
+                    new Moderator(player).vanish(true, false);
+                }
+            });
+        }
+
+        var commandManager = new PaperCommandManager(this);
+        commandManager.registerCommand(new StaffChatCommand(this));
+        commandManager.registerCommand(new VanishCommand(this));
+        commandManager.registerCommand(new ModCommand());
 
         getLogger().info("Moderation is now enabled!");
     }
 
     @Override
     public void onDisable() {
+        ModesStatus.clear();
+        ActionBar.clear();
         getLogger().info("Moderation is now disabled!");
-    }
-
-    public List<UUID> getStaffChatToggle() {
-        return staffChatToggle;
-    }
-
-    public void sendInStaffChat(Player sender, String message) {
-        var accountSystem = (AccountSystem) Bukkit.getPluginManager().getPlugin("AccountSystem");
-        Bukkit.getOnlinePlayers().stream().filter(p -> {
-            var accountManager = new AccountManager(accountSystem, p);
-            return accountManager.newRankManager().hasAtLeast(RankUnit.STAFF);
-        }).forEach(p -> {
-            var accountManager = new AccountManager(accountSystem, p);
-            var rank = accountManager.newRankManager().getMajorRank();
-            p.sendMessage(ChatColor.DARK_GRAY + "(" + ChatColor.AQUA + "" + ChatColor.BOLD + "Staff" + ChatColor.DARK_GRAY + ") " + ChatColor.GRAY + ChatColor.stripColor(rank.getPrefix()) + sender.getName() + " : " + ChatColor.RESET + message);
-        });
     }
 }
