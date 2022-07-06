@@ -6,6 +6,7 @@ import fr.olten.moderation.commands.StaffChatCommand;
 import fr.olten.moderation.commands.VanishCommand;
 import fr.olten.moderation.listener.PlayerChatListener;
 import fr.olten.moderation.listener.PlayerJoinListener;
+import fr.olten.moderation.logs.ChatLogger;
 import fr.olten.moderation.modes.ModesStatus;
 import fr.olten.moderation.util.ActionBar;
 import fr.olten.moderation.util.Moderator;
@@ -84,6 +85,7 @@ public class Moderation extends JavaPlugin {
     public static final List<UUID> STAFF_CHAT_TOGGLE = new ArrayList<>();
 
     private @Getter Component prefix;
+    private @Getter static ChatLogger chatLogger;
     private @Getter static Team vanishTeam;
 
 
@@ -95,6 +97,8 @@ public class Moderation extends JavaPlugin {
         if(prefixPath != null){
             this.prefix = MiniMessage.miniMessage().deserialize(prefixPath);
         }
+
+        chatLogger = new ChatLogger(this.prefix);
 
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerChatListener(this), this);
@@ -110,16 +114,22 @@ public class Moderation extends JavaPlugin {
         if (provider != null) {
             getServer().getOnlinePlayers().forEach(player -> {
                 var accountManager = new AccountManager(provider.getProvider(), player);
-                if (accountManager.getAccount().isVanish()) {
+                if(accountManager.getAccount().isModerationMode()){
+                    new Moderator(player).moderationMode(true, false);
+                }else if (accountManager.getAccount().isVanish()) {
                     new Moderator(player).vanish(true, false);
                 }
             });
         }
 
+        var staffChatCommand = new StaffChatCommand(this);
+        var vanishCommand = new VanishCommand(this);
+        var modCommand = new ModCommand();
+
         var commandManager = new PaperCommandManager(this);
-        commandManager.registerCommand(new StaffChatCommand(this));
-        commandManager.registerCommand(new VanishCommand(this));
-        commandManager.registerCommand(new ModCommand());
+        commandManager.registerCommand(staffChatCommand);
+        commandManager.registerCommand(vanishCommand);
+        commandManager.registerCommand(modCommand);
 
         getLogger().info("Moderation is now enabled!");
     }
