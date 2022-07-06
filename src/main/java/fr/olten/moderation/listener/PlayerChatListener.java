@@ -10,7 +10,6 @@ import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.apache.commons.lang3.StringUtils;
 import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -52,9 +51,9 @@ public class PlayerChatListener implements Listener {
 
             if (sensitive) {
                 Component finalCensored = censored;
-                Bukkit.getOnlinePlayers().stream().filter(p -> !p.isOp()).forEach(p -> event.renderer().render(player, player.displayName(), finalCensored, p));
+                Bukkit.getOnlinePlayers().stream().filter(p -> !p.hasPermission("xmas.moderation.warning.sensitive")).forEach(p -> event.renderer().render(player, player.displayName(), finalCensored, p));
                 Component finalModeratorMessage = moderatorMessage;
-                Bukkit.getOnlinePlayers().stream().filter(Player::isOp).forEach(p -> event.renderer().render(player, player.displayName(), finalModeratorMessage, p));
+                Bukkit.getOnlinePlayers().stream().filter(p -> p.hasPermission("xmas.moderation.warning.sensitive")).forEach(p -> event.renderer().render(player, player.displayName(), finalModeratorMessage, p));
             }
         }else{
             event.setCancelled(true);
