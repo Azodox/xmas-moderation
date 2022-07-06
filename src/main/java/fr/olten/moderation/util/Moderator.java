@@ -3,6 +3,7 @@ package fr.olten.moderation.util;
 import com.google.common.base.Preconditions;
 import dev.morphia.query.experimental.updates.UpdateOperators;
 import fr.olten.moderation.Moderation;
+import fr.olten.moderation.logs.ChatLoggable;
 import fr.olten.moderation.modes.ModesStatus;
 import lombok.Getter;
 import net.kyori.adventure.text.Component;
@@ -15,7 +16,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
-public class Moderator {
+public class Moderator implements ChatLoggable {
 
     private @Getter final Player player;
     private final AccountManager accountManager;
@@ -31,9 +32,11 @@ public class Moderator {
         if(mode && !accountManager.getAccount().isModerationMode()){
             this.databaseModerationMode(true);
             this.vanish(true, force);
+            Moderation.getChatLogger().log(Component.text(player.getName() + " s'est mis en mode modération."));
         }else if(!mode && accountManager.getAccount().isModerationMode()){
             this.databaseModerationMode(false);
             this.vanish(false, force);
+            Moderation.getChatLogger().log(Component.text(player.getName() + " n'est plus mode modération."));
         }
     }
 
@@ -56,6 +59,7 @@ public class Moderator {
             player.displayName(player.displayName().decorate(TextDecoration.OBFUSCATED));
             this.databaseVanish(true);
             ModesStatus.showStatus(player);
+            Moderation.getChatLogger().log(Component.text(player.getName() + " a activé son vanish."));
         }else if(!vanish && accountManager.getAccount().isVanish()) {
             player.removePotionEffect(PotionEffectType.INVISIBILITY);
             player.removePotionEffect(PotionEffectType.GLOWING);
@@ -71,6 +75,7 @@ public class Moderator {
 
             this.databaseVanish(false);
             ModesStatus.showStatus(player);
+            Moderation.getChatLogger().log(Component.text(player.getName() + " a désactivé son vanish."));
         }
     }
 
@@ -100,5 +105,10 @@ public class Moderator {
             ));
         }
 
+    }
+
+    @Override
+    public boolean receiveLogs() {
+        return accountManager.getAccount().isModerationMode();
     }
 }
